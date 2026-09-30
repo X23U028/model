@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, user-scalable=no"
+  >
+
+  <title>ナス - Mapbox VRM Walking</title>
+
+  <!-- =========================================
+       Mapbox CSS
+  ========================================== -->
+  <link
+    href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css"
+    rel="stylesheet"
+  />
+
+  <!-- =========================================
+       Mapbox JS
+  ========================================== -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
+
+  <style>
+
+    /* =========================================
+       基本
+    ========================================== */
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+
+      width: 100%;
+      height: 100%;
+
+      overflow: hidden;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+
+    /* =========================================
+       ステータス
+    ========================================== */
+
+    #status {
+
+      position: fixed;
+
+      top: 0;
+      left: 0;
+
+      z-index: 9999;
+
+      padding: 10px 14px;
+
+      max-width: 390px;
+
+      background: rgba(0, 0, 0, 0.75);
+
+      color: #ffffff;
+
+      font-size: 14px;
+      font-weight: 600;
+
+      line-height: 1.5;
+
+      border-radius: 0 0 8px 0;
+
+      white-space: pre-line;
+
+      pointer-events: none;
+    }
+
+
+    /* =========================================
+       座標
+    ========================================== */
+
+    #coordinate {
+
+      position: fixed;
+
+      top: 60px;
+      left: 0;
+
+      z-index: 9999;
+
+      padding: 8px 12px;
+
+      background: rgba(0, 0, 0, 0.60);
+
+      color: #ffffff;
+
+      font-size: 13px;
+
+      line-height: 1.5;
+
+      border-radius: 0 8px 8px 0;
+
+      pointer-events: none;
+    }
+
+
+    /* =========================================
+       操作説明
+    ========================================== */
+
+    #help {
+
+      position: fixed;
+
+      left: 0;
+      bottom: 100px;
+
+      z-index: 9999;
+
+      padding: 10px 12px;
+
+      background: rgba(0, 0, 0, 0.60);
+
+      color: #ffffff;
+
+      font-size: 13px;
+
+      line-height: 1.6;
+
+      border-radius: 0 8px 8px 0;
+
+      pointer-events: none;
+    }
+
+
+    /* =========================================
+       スマホ移動パッド
+    ========================================== */
+
+    #controls {
+
+      position: fixed;
+
+      left: 50%;
+      bottom: 20px;
+
+      transform: translateX(-50%);
+
+      width: 180px;
+      height: 180px;
+
+      z-index: 9999;
+
+      user-select: none;
+      -webkit-user-select: none;
+
+      touch-action: none;
+    }
+
+
+    .move-button {
+
+      position: absolute;
+
+      width: 58px;
+      height: 58px;
+
+      padding: 0;
+
+      border: none;
+
+      border-radius: 14px;
+
+      background: rgba(0, 0, 0, 0.55);
+
+      color: #ffffff;
+
+      font-size: 24px;
+      font-weight: bold;
+
+      display: flex;
+
+      justify-content: center;
+      align-items: center;
+
+      cursor: pointer;
+
+      user-select: none;
+      -webkit-user-select: none;
+
+      touch-action: none;
+
+      -webkit-tap-highlight-color: transparent;
+    }
+
+
+    .move-button:active {
+
+      background: rgba(60, 60, 60, 0.85);
+    }
+
+
+    #up {
+
+      top: 0;
+      left: 61px;
+    }
+
+
+    #left {
+
+      top: 61px;
+      left: 0;
+    }
+
+
+    #down {
+
+      top: 61px;
+      left: 61px;
+    }
+
+
+    #right {
+
+      top: 61px;
+      left: 122px;
+    }
+
+
+    /* =========================================
+       カメラ追従ボタン
+    ========================================== */
+
+    #followButton {
+
+      position: fixed;
+
+      right: 15px;
+      bottom: 20px;
+
+      z-index: 9999;
+
+      padding: 10px 15px;
+
+      border: none;
+
+      border-radius: 8px;
+
+      background: rgba(0, 0, 0, 0.70);
+
+      color: #ffffff;
+
+      font-size: 14px;
+
+      cursor: pointer;
+    }
+
+
+    #followButton.active {
+
+      background: rgba(40, 130, 50, 0.85);
+    }
+
+
+    /* =========================================
+       PC
+    ========================================== */
+
+    @media (min-width: 800px) {
+
+      #controls {
+        opacity: 0.45;
+      }
+
+      #controls:hover {
+        opacity: 1;
+      }
+
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- =========================================
+       Map
+  ========================================== -->
+
+  <div id="map"></div>
+
+
+  <!-- =========================================
+       UI
+  ========================================== -->
+
+  <div id="status">
+    読み込み中...
+  </div>
+
+
+  <div id="coordinate">
+    緯度: --<br>
+    経度: --
+  </div>
+
+
+  <div id="help">
+    PC：WASD / 矢印キーで移動<br>
+    Shift：ダッシュ<br>
+    F：カメラ追従 ON / OFF
+  </div>
+
+
+  <!-- =========================================
+       スマホ操作
+  ========================================== -->
+
+  <div id="controls">
+
+    <button
+      id="up"
+      class="move-button"
+      data-key="w"
+    >
+      ▲
+    </button>
+
+    <button
+      id="left"
+      class="move-button"
+      data-key="a"
+    >
+      ◀
+    </button>
+
+    <button
+      id="down"
+      class="move-button"
+      data-key="s"
+    >
+      ▼
+    </button>
+
+    <button
+      id="right"
+      class="move-button"
+      data-key="d"
+    >
+      ▶
+    </button>
+
+  </div>
+
+
+  <!-- =========================================
+       Follow
+  ========================================== -->
+
+  <button
+    id="followButton"
+    class="active"
+  >
+    カメラ追従：ON
+  </button>
+
+
+  <!-- =========================================
+       Import Map
+  ========================================== -->
+
+  <script type="importmap">
+  {
+    "imports": {
+
+      "three":
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+
+      "three/addons/":
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+
+      "@pixiv/three-vrm":
+        "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.js",
+
+      "@pixiv/three-vrm-animation":
+        "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@3/lib/three-vrm-animation.module.js"
+
+    }
+  }
+  </script>
+
+
+  <!-- =========================================
+       Three.js
+  ========================================== -->
+
+  <script type="module">
+
+    import * as THREE from "three";
+
+    import {
+      GLTFLoader
+    } from "three/addons/loaders/GLTFLoader.js";
+
+    import {
+      VRMLoaderPlugin,
+      VRMUtils
+    } from "@pixiv/three-vrm";
+
+    import {
+      VRMAnimationLoaderPlugin,
+      createVRMAnimationClip
+    } from "@pixiv/three-vrm-animation";
+
+
+    // =================================================
+    // 設定
+    // =================================================
+
+
+    /*
+     * ================================================
+     * Mapbox Access Token
+     * ================================================
+     */
+
+    mapboxgl.accessToken =
+      "pk.eyJ1Ijoia3Vyb211IiwiYSI6ImNtcDBqcGpjNjB3Y2EycnE2a3d6cGhmbG4ifQ.lQ-HQ1PQVvgpxSvj8J_9rA";
+
+
+    /*
+     * ================================================
+     * ファイル
+     * ================================================
+     */
+
+    const MODEL_FILE =
+      "./model.vrm";
+
+
+    const ANIMATION_FILE =
+      "./walk.vrma";
+
+
+    /*
+     * ================================================
+     * ナスの高さ
+     * ================================================
+     *
+     * 以前表示確認できた20mにしています。
+     *
+     * 普通の大きさにしたい場合
+     *
+     * 1.7
+     *
+     * にしてください。
+     */
+
+    const TARGET_HEIGHT =
+      100;
+
+
+    /*
+     * ================================================
+     * 通常歩行速度
+     * ================================================
+     */
+
+    const WALK_SPEED =
+      2.0;
+
+
+    /*
+     * ================================================
+     * ダッシュ速度
+     * ================================================
+     */
+
+    const DASH_SPEED =
+      5.0;
+
+
+    /*
+     * ================================================
+     * VRMの向き補正
+     * ================================================
+     *
+     * 後ろ向きに歩く場合
+     *
+     * Math.PI
+     * ↓
+     * 0
+     *
+     * に変更してください。
+     */
+
+    const FACING_OFFSET =
+      Math.PI;
+
+
+    /*
+     * ================================================
+     * 初期位置
+     * ================================================
+     *
+     * 東京駅周辺
+     */
+
+    let playerLngLat = [
+      139.7671,
+      35.6812
+    ];
+
+
+    // =================================================
+    // グローバル状態
+    // =================================================
+
+    let map = null;
+
+
+    let scene = null;
+
+
+    let camera = null;
+
+
+    let renderer = null;
+
+
+    let modelRoot = null;
+
+
+    let vrm = null;
+
+
+    let mixer = null;
+
+
+    let walkAction = null;
+
+
+    let animationLoaded = false;
+
+
+    let vrmLoaded = false;
+
+
+    let isWalking = false;
+
+
+    /*
+     * VRMの元高さ
+     */
+
+    let originalModelHeight = 1;
+
+
+    /*
+     * キー状態
+     */
+
+    const keys =
+      new Set();
+
+
+    /*
+     * Clock
+     */
+
+    const clock =
+      new THREE.Clock();
+
+
+    /*
+     * カメラ追従
+     */
+
+    let followPlayer =
+      true;
+
+
+    // =================================================
+    // UI取得
+    // =================================================
+
+    const statusElement =
+      document.getElementById("status");
+
+
+    const coordinateElement =
+      document.getElementById("coordinate");
+
+
+    const followButton =
+      document.getElementById("followButton");
+
+
+    // =================================================
+    // ステータス表示
+    // =================================================
+
+    function setStatus(message) {
+
+      statusElement.textContent =
+        message;
+
+      console.log(message);
+
+    }
+
+
+    // =================================================
+    // 座標表示
+    // =================================================
+
+    function updateCoordinate() {
+
+      coordinateElement.innerHTML =
+
+        "緯度: " +
+        playerLngLat[1].toFixed(6) +
+        "<br>" +
+
+        "経度: " +
+        playerLngLat[0].toFixed(6);
+
+    }
+
+
+    updateCoordinate();
+
+
+    // =================================================
+    // Mapbox
+    // =================================================
+
+    map = new mapboxgl.Map({
+
+      container: "map",
+
+      style:
+        "mapbox://styles/mapbox/standard",
+
+      center:
+        playerLngLat,
+
+      zoom:
+        19,
+
+      pitch:
+        60,
+
+      bearing:
+        0,
+
+      antialias:
+        true
+
+    });
+
+
+    // =================================================
+    // Three.js Custom Layer
+    // =================================================
+
+    const customLayer = {
+
+      id:
+        "vrm-player",
+
+      type:
+        "custom",
+
+      renderingMode:
+        "3d",
+
+
+      // ===============================================
+      // onAdd
+      // ===============================================
+
+      onAdd(
+        mapInstance,
+        gl
+      ) {
+
+        setStatus(
+          "Three.jsを初期化しています..."
+        );
+
+
+        // =============================================
+        // Scene
+        // =============================================
+
+        scene =
+          new THREE.Scene();
+
+
+        // =============================================
+        // Camera
+        // =============================================
+
+        camera =
+          new THREE.Camera();
+
+
+        // =============================================
+        // Light
+        // =============================================
+
+        const ambientLight =
+          new THREE.AmbientLight(
+            0xffffff,
+            2.5
+          );
+
+
+        scene.add(
+          ambientLight
+        );
+
+
+        const directionalLight =
+          new THREE.DirectionalLight(
+            0xffffff,
+            3.0
+          );
+
+
+        directionalLight.position.set(
+          100,
+          -100,
+          200
+        );
+
+
+        scene.add(
+          directionalLight
+        );
+
+
+        // =============================================
+        // モデル用Root
+        // =============================================
+
+        modelRoot =
+          new THREE.Group();
+
+
+        /*
+         * 重要
+         *
+         * ここではモデルをMapbox座標へ直接配置しない。
+         *
+         * 位置・縮尺・Mapbox座標変換は
+         * render()の中で行います。
+         */
+
+        scene.add(
+          modelRoot
+        );
+
+
+        // =============================================
+        // Renderer
+        // =============================================
+
+        renderer =
+          new THREE.WebGLRenderer({
+
+            canvas:
+              mapInstance.getCanvas(),
+
+            context:
+              gl,
+
+            antialias:
+              true
+
+          });
+
+
+        /*
+         * Mapboxと同じCanvasを使うため
+         * Three.js単独の画面クリアを禁止。
+         */
+
+        renderer.autoClear =
+          false;
+
+
+        // =============================================
+        // GLTF Loader
+        // =============================================
+
+        const loader =
+          new GLTFLoader();
+
+
+        loader.crossOrigin =
+          "anonymous";
+
+
+        // =============================================
+        // VRM Loader
+        // =============================================
+
+        loader.register(
+          function (parser) {
+
+            return new VRMLoaderPlugin(
+              parser
+            );
+
+          }
+        );
+
+
+        // =============================================
+        // VRMA Loader
+        // =============================================
+
+        loader.register(
+          function (parser) {
+
+            return new VRMAnimationLoaderPlugin(
+              parser
+            );
+
+          }
+        );
+
+
+        // =============================================
+        // VRM読み込み
+        // =============================================
+
+        setStatus(
+          "VRM「ナス」を読み込んでいます..."
+        );
+
+
+        loader.load(
+
+          MODEL_FILE,
+
+
+          function (gltf) {
+
+            try {
+
+              // =======================================
+              // VRM取得
+              // =======================================
+
+              vrm =
+                gltf.userData.vrm;
+
+
+              if (!vrm) {
+
+                throw new Error(
+                  "VRMとして認識できませんでした。"
+                );
+
+              }
+
+
+              console.log(
+                "VRM loaded:",
+                vrm
+              );
+
+
+              // =======================================
+              // 最適化
+              // =======================================
+
+              VRMUtils.removeUnnecessaryVertices(
+                vrm.scene
+              );
+
+
+              VRMUtils.removeUnnecessaryJoints(
+                vrm.scene
+              );
+
+
+              // =======================================
+              // カリング無効
+              // =======================================
+
+              vrm.scene.traverse(
+                function (object) {
+
+                  object.frustumCulled =
+                    false;
+
+                }
+              );
+
+
+              // =======================================
+              // モデル高さ計測
+              // =======================================
+
+              const box =
+                new THREE.Box3().setFromObject(
+                  vrm.scene
+                );
+
+
+              const size =
+                new THREE.Vector3();
+
+
+              box.getSize(
+                size
+              );
+
+
+              originalModelHeight =
+                size.y;
+
+
+              console.log(
+                "VRM元サイズ:",
+                size
+              );
+
+
+              console.log(
+                "VRM元高さ:",
+                originalModelHeight
+              );
+
+
+              // =======================================
+              // 足元を0にする
+              // =======================================
+
+              vrm.scene.position.y =
+                -box.min.y;
+
+
+              // =======================================
+              // VRMをSceneへ追加
+              // =======================================
+
+              modelRoot.add(
+                vrm.scene
+              );
+
+
+              vrmLoaded =
+                true;
+
+
+              // =======================================
+              // AnimationMixer
+              // =======================================
+
+              mixer =
+                new THREE.AnimationMixer(
+                  vrm.scene
+                );
+
+
+              setStatus(
+                "VRM「ナス」読み込み完了。\n" +
+                "歩行モーションを読み込んでいます..."
+              );
+
+
+              // =======================================
+              // VRMA読み込み
+              // =======================================
+
+              loader.load(
+
+                ANIMATION_FILE,
+
+
+                function (animationGltf) {
+
+                  try {
+
+                    console.log(
+                      "VRMA GLTF:",
+                      animationGltf
+                    );
+
+
+                    // =================================
+                    // VRMA取得
+                    // =================================
+
+                    const animations =
+                      animationGltf
+                        .userData
+                        .vrmAnimations;
+
+
+                    if (
+                      !animations ||
+                      animations.length === 0
+                    ) {
+
+                      throw new Error(
+                        "VRMAアニメーションが見つかりません。"
+                      );
+
+                    }
+
+
+                    const vrmAnimation =
+                      animations[0];
+
+
+                    console.log(
+                      "VRMA:",
+                      vrmAnimation
+                    );
+
+
+                    // =================================
+                    // VRMA → AnimationClip
+                    // =================================
+
+                    const clip =
+                      createVRMAnimationClip(
+                        vrmAnimation,
+                        vrm
+                      );
+
+
+                    console.log(
+                      "AnimationClip:",
+                      clip
+                    );
+
+
+                    // =================================
+                    // Action
+                    // =================================
+
+                    walkAction =
+                      mixer.clipAction(
+                        clip
+                      );
+
+
+                    walkAction.setLoop(
+                      THREE.LoopRepeat,
+                      Infinity
+                    );
+
+
+                    walkAction.clampWhenFinished =
+                      false;
+
+
+                    walkAction.enabled =
+                      true;
+
+
+                    walkAction.stop();
+
+
+                    animationLoaded =
+                      true;
+
+
+                    setStatus(
+                      "ナス＋歩行モーション読み込み完了！\n" +
+                      "WASD / 矢印キーで歩けます。"
+                    );
+
+
+                  }
+                  catch (error) {
+
+                    console.error(
+                      "VRMA処理エラー:",
+                      error
+                    );
+
+
+                    setStatus(
+                      "VRMは表示できますが、\n" +
+                      "VRMA処理でエラーが発生しました。"
+                    );
+
+                  }
+
+                },
+
+
+                function (progress) {
+
+                  if (
+                    progress.total > 0
+                  ) {
+
+                    const percent =
+                      (
+                        progress.loaded /
+                        progress.total *
+                        100
+                      ).toFixed(0);
+
+
+                    console.log(
+                      "VRMA:",
+                      percent + "%"
+                    );
+
+                  }
+
+                },
+
+
+                function (error) {
+
+                  console.error(
+                    "VRMA読み込みエラー:",
+                    error
+                  );
+
+
+                  setStatus(
+                    "VRM「ナス」は読み込めました。\n" +
+                    "walk.vrmaを読み込めませんでした。"
+                  );
+
+                }
+
+              );
+
+            }
+            catch (error) {
+
+              console.error(
+                "VRM処理エラー:",
+                error
+              );
+
+
+              setStatus(
+                "VRM処理中にエラーが発生しました。"
+              );
+
+            }
+
+          },
+
+
+          function (progress) {
+
+            if (
+              progress.total > 0
+            ) {
+
+              const percent =
+                (
+                  progress.loaded /
+                  progress.total *
+                  100
+                ).toFixed(0);
+
+
+              setStatus(
+                "VRM読み込み中...\n" +
+                percent +
+                "%"
+              );
+
+            }
+
+          },
+
+
+          function (error) {
+
+            console.error(
+              "VRM読み込みエラー:",
+              error
+            );
+
+
+            setStatus(
+              "VRMの読み込みに失敗しました。\n" +
+              "model.vrmを確認してください。"
+            );
+
+          }
+
+        );
+
+      },
+
+
+      // ===============================================
+      // Render
+      // ===============================================
+
+      render(
+        gl,
+        matrix
+      ) {
+
+        if (
+          !renderer ||
+          !scene ||
+          !camera
+        ) {
+
+          return;
+
+        }
+
+
+        // =============================================
+        // 時間
+        // =============================================
+
+        const delta =
+          clock.getDelta();
+
+
+        // =============================================
+        // プレイヤー移動
+        // =============================================
+
+        updatePlayerMovement(
+          delta
+        );
+
+
+        // =============================================
+        // VRM更新
+        // =============================================
+
+        if (vrm) {
+
+          vrm.update(
+            delta
+          );
+
+        }
+
+
+        // =============================================
+        // アニメーション更新
+        // =============================================
+
+        if (mixer) {
+
+          mixer.update(
+            delta
+          );
+
+        }
+
+
+        // =============================================
+        // Mapbox座標
+        // =============================================
+
+        const mercator =
+          mapboxgl.MercatorCoordinate.fromLngLat(
+            playerLngLat,
+            0
+          );
+
+
+        /*
+         * 1メートルを
+         * Mercator座標でどれだけ表すか
+         */
+
+        const meterScale =
+          mercator.meterInMercatorCoordinateUnits();
+
+
+        /*
+         * モデルの高さをTARGET_HEIGHTに合わせる
+         */
+
+        const modelScale =
+          meterScale *
+          TARGET_HEIGHT /
+          originalModelHeight;
+
+
+        // =============================================
+        // Mapbox変換
+        // =============================================
+
+        const mapboxMatrix =
+          new THREE.Matrix4().fromArray(
+            matrix
+          );
+
+
+        // =============================================
+        // モデル位置
+        // =============================================
+
+        const modelTranslation =
+          new THREE.Matrix4()
+            .makeTranslation(
+              mercator.x,
+              mercator.y,
+              mercator.z
+            );
+
+
+        // =============================================
+        // モデル縮尺
+        // =============================================
+
+        /*
+         * Yをマイナスにするのが重要。
+         *
+         * MapboxとThree.jsの
+         * 座標系の違いを吸収します。
+         */
+
+        const modelScaleMatrix =
+          new THREE.Matrix4()
+            .scale(
+              new THREE.Vector3(
+                modelScale,
+                -modelScale,
+                modelScale
+              )
+            );
+
+
+        // =============================================
+        // X回転
+        // =============================================
+
+        const rotationX =
+          new THREE.Matrix4()
+            .makeRotationAxis(
+              new THREE.Vector3(
+                1,
+                0,
+                0
+              ),
+              Math.PI / 2
+            );
+
+
+        // =============================================
+        // モデル変換
+        // =============================================
+
+        const modelMatrix =
+          new THREE.Matrix4()
+            .copy(modelTranslation)
+            .multiply(modelScaleMatrix)
+            .multiply(rotationX);
+
+
+        // =============================================
+        // Camera Projection
+        // =============================================
+
+        camera.projectionMatrix =
+          new THREE.Matrix4()
+            .copy(mapboxMatrix)
+            .multiply(modelMatrix);
+
+
+        /*
+         * projectionMatrixの中に
+         *
+         * Mapbox Camera
+         * +
+         * Model Transform
+         *
+         * をまとめています。
+         */
+
+
+        // =============================================
+        // Camera World
+        // =============================================
+
+        camera.matrixWorld.identity();
+
+        camera.matrixWorldInverse.identity();
+
+
+        // =============================================
+        // Three.js描画状態をリセット
+        // =============================================
+
+        renderer.resetState();
+
+
+        // =============================================
+        // 描画
+        // =============================================
+
+        renderer.render(
+          scene,
+          camera
+        );
+
+
+        // =============================================
+        // 次のMapbox再描画
+        // =============================================
+
+        map.triggerRepaint();
+
+      }
+
+    };
+
+
+    // =================================================
+    // Map読み込み
+    // =================================================
+
+    map.on(
+      "style.load",
+      function () {
+
+        map.addLayer(
+          customLayer
+        );
+
+
+        setStatus(
+          "Mapbox起動完了。\n" +
+          "VRM「ナス」を読み込んでいます..."
+        );
+
+      }
+    );
+
+
+    // =================================================
+    // プレイヤー移動
+    // =================================================
+
+    function moveByMeters(
+      east,
+      north
+    ) {
+
+      const latitude =
+        playerLngLat[1];
+
+
+      /*
+       * 緯度1度あたりの距離
+       */
+
+      const metersPerLatitude =
+        110540;
+
+
+      /*
+       * 経度1度あたりの距離
+       */
+
+      const metersPerLongitude =
+        111320 *
+        Math.cos(
+          latitude *
+          Math.PI /
+          180
+        );
+
+
+      /*
+       * メートル → 度
+       */
+
+      const deltaLongitude =
+        east /
+        metersPerLongitude;
+
+
+      const deltaLatitude =
+        north /
+        metersPerLatitude;
+
+
+      /*
+       * 座標更新
+       */
+
+      playerLngLat[0] +=
+        deltaLongitude;
+
+
+      playerLngLat[1] +=
+        deltaLatitude;
+
+
+      updateCoordinate();
+
+
+      /*
+       * カメラ追従
+       */
+
+      if (
+        followPlayer
+      ) {
+
+        map.setCenter(
+          playerLngLat
+        );
+
+      }
+
+    }
+
+
+    // =================================================
+    // 移動方向
+    // =================================================
+
+    function getMoveDirection() {
+
+      let x = 0;
+
+      let y = 0;
+
+
+      // =============================================
+      // 左
+      // =============================================
+
+      if (
+        keys.has("a") ||
+        keys.has("arrowleft")
+      ) {
+
+        x -= 1;
+
+      }
+
+
+      // =============================================
+      // 右
+      // =============================================
+
+      if (
+        keys.has("d") ||
+        keys.has("arrowright")
+      ) {
+
+        x += 1;
+
+      }
+
+
+      // =============================================
+      // 上
+      // =============================================
+
+      if (
+        keys.has("w") ||
+        keys.has("arrowup")
+      ) {
+
+        y += 1;
+
+      }
+
+
+      // =============================================
+      // 下
+      // =============================================
+
+      if (
+        keys.has("s") ||
+        keys.has("arrowdown")
+      ) {
+
+        y -= 1;
+
+      }
+
+
+      /*
+       * 移動なし
+       */
+
+      if (
+        x === 0 &&
+        y === 0
+      ) {
+
+        return null;
+
+      }
+
+
+      /*
+       * 正規化
+       *
+       * 斜め移動だけ速くならないようにする
+       */
+
+      const direction =
+        new THREE.Vector2(
+          x,
+          y
+        ).normalize();
+
+
+      return direction;
+
+    }
+
+
+    // =================================================
+    // プレイヤー移動更新
+    // =================================================
+
+    function updatePlayerMovement(
+      delta
+    ) {
+
+      if (!vrmLoaded) {
+
+        return;
+
+      }
+
+
+      const direction =
+        getMoveDirection();
+
+
+      /*
+       * 移動していない
+       */
+
+      if (!direction) {
+
+        stopWalking();
+
+        return;
+
+      }
+
+
+      /*
+       * Shiftでダッシュ
+       */
+
+      const speed =
+        keys.has("shift")
+          ? DASH_SPEED
+          : WALK_SPEED;
+
+
+      /*
+       * 今フレームの移動距離
+       */
+
+      const distance =
+        speed *
+        delta;
+
+
+      /*
+       * 実際に移動
+       */
+
+      moveByMeters(
+
+        direction.x *
+        distance,
+
+        direction.y *
+        distance
+
+      );
+
+
+      /*
+       * ナスの向き
+       */
+
+      updatePlayerRotation(
+        direction
+      );
+
+
+      /*
+       * 歩行モーション
+       */
+
+      startWalking(
+        speed
+      );
+
+    }
+
+
+    // =================================================
+    // ナスの方向
+    // =================================================
+
+    function updatePlayerRotation(
+      direction
+    ) {
+
+      if (!vrm) {
+
+        return;
+
+      }
+
+
+      /*
+       * 進行方向の角度
+       */
+
+      const angle =
+        Math.atan2(
+          direction.x,
+          direction.y
+        );
+
+
+      /*
+       * VRMの正面補正
+       */
+
+      vrm.scene.rotation.y =
+        angle +
+        FACING_OFFSET;
+
+    }
+
+
+    // =================================================
+    // 歩行開始
+    // =================================================
+
+    function startWalking(
+      speed
+    ) {
+
+      if (
+        !animationLoaded ||
+        !walkAction
+      ) {
+
+        return;
+
+      }
+
+
+      /*
+       * 初めて歩く
+       */
+
+      if (!isWalking) {
+
+        isWalking =
+          true;
+
+
+        walkAction
+          .reset()
+          .fadeIn(0.15)
+          .play();
+
+      }
+
+
+      /*
+       * ダッシュ時は
+       * アニメーション速度も上げる
+       */
+
+      walkAction.timeScale =
+        speed /
+        WALK_SPEED;
+
+    }
+
+
+    // =================================================
+    // 歩行停止
+    // =================================================
+
+    function stopWalking() {
+
+      if (
+        !walkAction ||
+        !isWalking
+      ) {
+
+        return;
+
+      }
+
+
+      isWalking =
+        false;
+
+
+      walkAction.fadeOut(
+        0.15
+      );
+
+    }
+
+
+    // =================================================
+    // キー入力
+    // =================================================
+
+    window.addEventListener(
+      "keydown",
+      function (event) {
+
+        const key =
+          event.key.toLowerCase();
+
+
+        // =============================================
+        // 使用するキー
+        // =============================================
+
+        const validKeys = [
+
+          "w",
+          "a",
+          "s",
+          "d",
+
+          "arrowup",
+          "arrowdown",
+          "arrowleft",
+          "arrowright",
+
+          "shift"
+
+        ];
+
+
+        if (
+          validKeys.includes(key)
+        ) {
+
+          event.preventDefault();
+
+          keys.add(
+            key
+          );
+
+        }
+
+
+        // =============================================
+        // F
+        // =============================================
+
+        if (
+          key === "f"
+        ) {
+
+          toggleFollow();
+
+        }
+
+      }
+    );
+
+
+    // =================================================
+    // キーを離した
+    // =================================================
+
+    window.addEventListener(
+      "keyup",
+      function (event) {
+
+        const key =
+          event.key.toLowerCase();
+
+
+        keys.delete(
+          key
+        );
+
+      }
+    );
+
+
+    // =================================================
+    // ウィンドウが非アクティブになった場合
+    // =================================================
+
+    window.addEventListener(
+      "blur",
+      function () {
+
+        keys.clear();
+
+        stopWalking();
+
+      }
+    );
+
+
+    // =================================================
+    // スマホボタン
+    // =================================================
+
+    const moveButtons =
+      document.querySelectorAll(
+        ".move-button"
+      );
+
+
+    moveButtons.forEach(
+      function (button) {
+
+        const key =
+          button.dataset.key;
+
+
+        // =============================================
+        // 押した
+        // =============================================
+
+        button.addEventListener(
+          "pointerdown",
+          function (event) {
+
+            event.preventDefault();
+
+            keys.add(
+              key
+            );
+
+          }
+        );
+
+
+        // =============================================
+        // 離した
+        // =============================================
+
+        button.addEventListener(
+          "pointerup",
+          function (event) {
+
+            event.preventDefault();
+
+            keys.delete(
+              key
+            );
+
+          }
+        );
+
+
+        // =============================================
+        // キャンセル
+        // =============================================
+
+        button.addEventListener(
+          "pointercancel",
+          function () {
+
+            keys.delete(
+              key
+            );
+
+          }
+        );
+
+
+        // =============================================
+        // ボタンから離れた
+        // =============================================
+
+        button.addEventListener(
+          "pointerleave",
+          function () {
+
+            keys.delete(
+              key
+            );
+
+          }
+        );
+
+      }
+    );
+
+
+    // =================================================
+    // カメラ追従切り替え
+    // =================================================
+
+    function toggleFollow() {
+
+      followPlayer =
+        !followPlayer;
+
+
+      if (
+        followPlayer
+      ) {
+
+        followButton.textContent =
+          "カメラ追従：ON";
+
+
+        followButton.classList.add(
+          "active"
+        );
+
+
+        map.setCenter(
+          playerLngLat
+        );
+
+      }
+      else {
+
+        followButton.textContent =
+          "カメラ追従：OFF";
+
+
+        followButton.classList.remove(
+          "active"
+        );
+
+      }
+
+    }
+
+
+    // =================================================
+    // カメラ追従ボタン
+    // =================================================
+
+    followButton.addEventListener(
+      "click",
+      function () {
+
+        toggleFollow();
+
+      }
+    );
+
+
+    // =================================================
+    // コンソール
+    // =================================================
+
+    console.log(
+      "=============================="
+    );
+
+
+    console.log(
+      "ナス Mapbox VRM System"
+    );
+
+
+    console.log(
+      "VRM:",
+      MODEL_FILE
+    );
+
+
+    console.log(
+      "VRMA:",
+      ANIMATION_FILE
+    );
+
+
+    console.log(
+      "=============================="
+    );
+
+  </script>
+
+</body>
+</html>
